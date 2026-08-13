@@ -89,15 +89,18 @@ See the dedicated acceptance-criteria field. Closure requires all child packages
 ]
 #+end_src
 
-* TODO [#C] GATE-01 — Select the core language and prove three-system Nix fitness    :gate:
+* DONE [#C] GATE-01 — Select the core language and prove three-system Nix fitness    :gate:
 :PROPERTIES:
 :OBR_SCHEMA_VERSION: 17
 :ID:       sess-ek0.1.1
 :LABELS: ["decision-gate","gate","implementation-plan","phase-0","session-archive","work-package"]
 :ISSUE_TYPE: task
 :CREATED:  [2026-08-12 Wed 15:04]
-:MODIFIED: [2026-08-12 Wed 15:07]
+:MODIFIED: [2026-08-12 Wed 17:13]
+:ASSIGNEE: pi
 :CREATED_BY: pi
+:FINISHED: [2026-08-12 Wed 17:13]
+:CLOSE_REASON: Completed bounded Haskell/Python comparison: operation-complete synthetic checks passed on all three target systems, fair closures and exact evidence recorded, final independent review approved retaining Haskell.
 :EXTERNAL_REF: implementation-plan:GATE-01
 :SOURCE_REPO: sessions
 :SOURCE_REPO_PATH: /Users/johnw/src/sessions
@@ -157,6 +160,75 @@ Do not close this issue until both sections are satisfied with concrete evidence
     "created_by": "pi",
     "metadata": "{}",
     "thread_id": ""
+  }
+]
+#+end_src
+
+** Comments
+#+begin_src json
+[
+  {
+    "id": 1,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Wiggum handoff — GATE-01\n\nFrozen done criteria:\n- Compare bounded Haskell and Python implementations for exact binary copy/SHA-256, deterministic manifest encoding, subprocess timeout/cancellation, SQLite FTS and backup.\n- Build and execute synthetic checks on aarch64-darwin, aarch64-linux, and x86_64-linux using the pinned Nix closure.\n- Record closure reproducibility/size, unsafe-FFI exposure, adapter-boundary size, failure behavior, maintainability, exact commands/tool versions/failures, and language decision.\n- Haskell remains selected unless the documented reversal threshold is demonstrated.\n- Spike remains outside the repository and touches no archive path, private fixture, source data, or deployment output.\n\nBaseline:\n- Repository HEAD be2f91e on main, clean before claim, origin/main aligned.\n- No project .envrc or flake exists yet; direnv contributes no project environment. All Nix/tool commands will still run through `direnv exec .`; never `nix develop`.\n- Configured Nix builders cover aarch64-linux and x86_64-linux; local system is aarch64-darwin.\n- Spike namespace: `~/Products/sessions/gate-01`.\n\nCurrent state: claimed; no spike files created yet; failure attempts 0.\nExact resume step: author the throwaway two-language flake under `~/Products/sessions/gate-01`, pin nixpkgs, and build its comparison check for all three systems.\n",
+    "created_at": "2026-08-12T23:17:25Z"
+  },
+  {
+    "id": 2,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "GATE-01 attempt 1: pre-build Python syntax check failed because the FTS query was displaced during an edit, leaving an unmatched parenthesis. Corrected the exact transaction/query/backup block; no Nix build or environment fallback occurred. Next: rerun syntax and flake evaluation.",
+    "created_at": "2026-08-12T23:26:44Z"
+  },
+  {
+    "id": 3,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "GATE-01 attempt 2: aarch64-darwin built both packages, but the Haskell timeout check reported sleep ExitSuccess. Direct reproduction proved waitForProcess blocked timer delivery because the executable lacked the threaded RTS. Added -threaded; did not weaken the 200 ms timeout or substitute a fake. Next: rebuild identical comparison.",
+    "created_at": "2026-08-12T23:32:57Z"
+  },
+  {
+    "id": 4,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "GATE-01 attempt 3: exact Python trace showed missing input reaches FileNotFoundError immediately; only unhandled exception rendering stalled. Added explicit OSError CLI boundary. Syntax passed and direct missing-input invocation returns 1 in 0.078s. Rebuilding the unchanged comparison contract now.",
+    "created_at": "2026-08-12T23:39:34Z"
+  },
+  {
+    "id": 5,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Independent no-history gate review rejected closure: current Haskell package closure omits required external sqlite3 while Python's in-process SQLite runtime is included; both package closures also omit/default-inject sleep from the check. Haskell retention remains threshold-justified. Fix: make both measured packages operation-complete with declared runtime tools, rerun all three systems, recompute closure evidence, record exact evidence commands, then re-review. Attempt counter remains reset: this is a new review finding, not a repeated build signature.",
+    "created_at": "2026-08-12T23:54:58Z"
+  },
+  {
+    "id": 6,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Second independent no-history review confirms the operation-complete closure fix, shared checker semantics, architecture/minimality fit, three-system evidence, and Haskell retention. Closure remains rejected only because evidence-commands.md names the pre-fix Darwin rebuild log and omits the command/output attesting the reported Nix version. Fixing those exact evidence records now; no code or comparison redesign required.",
+    "created_at": "2026-08-13T00:09:54Z"
+  },
+  {
+    "id": 7,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Resolved the second review's two evidence-only blockers: evidence-commands.md now records nix (Determinate Nix 3.21.7) 2.34.8 with raw output , and its supported rebuild command now writes the exact final  cited by the report. Code, package closures, checker semantics, and three-system results are unchanged.",
+    "created_at": "2026-08-13T00:10:24Z"
+  },
+  {
+    "id": 8,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Evidence-record correction (literal restatement after shell quoting damaged the prior comment): evidence-commands.md now records `direnv exec . nix --version | tee \"$spike/logs/nix-version.txt\"`; raw `logs/nix-version.txt` contains `nix (Determinate Nix 3.21.7) 2.34.8`. Its supported local rebuild command now writes the exact final `logs/aarch64-darwin-operation-complete-rebuild.log` cited by decision-report.md. Mechanical alignment checks passed. Code, package closures, checker semantics, and three-system results remain unchanged.\n",
+    "created_at": "2026-08-13T00:10:45Z"
+  },
+  {
+    "id": 9,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "GATE-01 completion evidence\n\nDecision: retain Haskell for the production core; no documented Python reversal trigger activated.\n\nEvidence root: /Users/johnw/Products/sessions/gate-01\n- decision-report.md: complete threshold, behavior, closure, failure, maintainability, and decision record.\n- evidence-commands.md: exact commands for syntax, locking, evaluation, builds, closure/reference enumeration, version capture, source identity, unsafe/FFI scan, and rebuild probes.\n- fleet-context.md: read-only current Nix fleet map, explicitly non-authorizing and non-scope-expanding.\n- operation-complete checks passed with identical exact outputs on aarch64-darwin, aarch64-linux (vulcan.lan builder), and x86_64-linux (andoria-08 builder).\n- operation-complete Haskell closures: 103,712,768 / 71,483,688 / 80,846,560 bytes; Python: 1,448,651,528 / 240,195,224 / 221,824,568 bytes.\n- Every Haskell wrapper directly references Bash, coreutils, the static executable, and SQLite; every Python wrapper references Bash, coreutils, source, and Python.\n- Haskell 119 implementation lines versus Python 81; no unsafe/foreign/FFI source; external SQLite matches approved architecture.\n- Attempts and all limitations retained; foreign Linux --rebuild remains explicitly unproven and non-blocking, while final Darwin operation-complete --rebuild passed.\n- Fresh no-history final reviewer: APPROVE_GATE_CLOSE, no blockers; low residual is only unsupported foreign byte-for-byte rebuild proof.\n\nFinal source hashes and exact Nix store paths are in the evidence root. The entire spike stayed outside the repository and used synthetic bytes/SQLite only. No archive path, private fixture, source data, deployment, activation, or remote mutation occurred.\n",
+    "created_at": "2026-08-13T00:13:58Z"
   }
 ]
 #+end_src
