@@ -96,7 +96,7 @@ See the dedicated acceptance-criteria field. Closure requires all child packages
 :LABELS: ["decision-gate","gate","implementation-plan","phase-0","session-archive","work-package"]
 :ISSUE_TYPE: task
 :CREATED:  [2026-08-12 Wed 15:04]
-:MODIFIED: [2026-08-12 Wed 17:13]
+:MODIFIED: [2026-08-12 Wed 17:32]
 :ASSIGNEE: pi
 :CREATED_BY: pi
 :FINISHED: [2026-08-12 Wed 17:13]
@@ -229,6 +229,20 @@ Do not close this issue until both sections are satisfied with concrete evidence
     "author": "pi",
     "text": "GATE-01 completion evidence\n\nDecision: retain Haskell for the production core; no documented Python reversal trigger activated.\n\nEvidence root: /Users/johnw/Products/sessions/gate-01\n- decision-report.md: complete threshold, behavior, closure, failure, maintainability, and decision record.\n- evidence-commands.md: exact commands for syntax, locking, evaluation, builds, closure/reference enumeration, version capture, source identity, unsafe/FFI scan, and rebuild probes.\n- fleet-context.md: read-only current Nix fleet map, explicitly non-authorizing and non-scope-expanding.\n- operation-complete checks passed with identical exact outputs on aarch64-darwin, aarch64-linux (vulcan.lan builder), and x86_64-linux (andoria-08 builder).\n- operation-complete Haskell closures: 103,712,768 / 71,483,688 / 80,846,560 bytes; Python: 1,448,651,528 / 240,195,224 / 221,824,568 bytes.\n- Every Haskell wrapper directly references Bash, coreutils, the static executable, and SQLite; every Python wrapper references Bash, coreutils, source, and Python.\n- Haskell 119 implementation lines versus Python 81; no unsafe/foreign/FFI source; external SQLite matches approved architecture.\n- Attempts and all limitations retained; foreign Linux --rebuild remains explicitly unproven and non-blocking, while final Darwin operation-complete --rebuild passed.\n- Fresh no-history final reviewer: APPROVE_GATE_CLOSE, no blockers; low residual is only unsupported foreign byte-for-byte rebuild proof.\n\nFinal source hashes and exact Nix store paths are in the evidence root. The entire spike stayed outside the repository and used synthetic bytes/SQLite only. No archive path, private fixture, source data, deployment, activation, or remote mutation occurred.\n",
     "created_at": "2026-08-13T00:13:58Z"
+  },
+  {
+    "id": 10,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Post-fess cleanup exposed one new Darwin-only signature after removing an unused Python import: the pinned Python wrapper could hang before creating output. Native sampling proved startup blocked in `os_listdir/readdir` while import machinery scanned `/nix/store`, because executing a Nix string-coerced `...-main.py` adds its enormous parent directory to `sys.path`. Linux remained green. The exact immutable source completed in 0.274s under Python's standard `-P` safe-path mode with all six outputs correct. Encoded `python3 -P` in both package and checker script boundaries; same semantic assertions retained. Current signature attempt count: 1; next action: rebuild all three systems and regenerate evidence if green.\n",
+    "created_at": "2026-08-13T00:30:12Z"
+  },
+  {
+    "id": 11,
+    "issue_id": "sess-ek0.1.1",
+    "author": "pi",
+    "text": "Fess correction to the earlier completion-evidence wording: the aarch64-linux and x86_64-linux checks intentionally used configured Nix builders, which wrote derivations and output paths in those builders' Nix stores. Therefore “no remote mutation occurred” was overbroad. The accurate boundary is: no deployment, activation, host configuration, service/scheduler state, archive/private data, transcript source, or source-host mutable state was changed. Remote builder-store writes were build evidence only.\n\nThe other fess findings are also resolved in the external spike evidence: removed the unused Python `shutil` import; made both evidence shell blocks use `set -euo pipefail`; and made expected foreign-platform rebuild failures explicitly assert Nix's nonzero `PIPESTATUS`, `tee` success, and the `platform mismatch` signature. Removing the dead import exposed a Darwin Python startup hang caused by import scanning `/nix/store`; native sampling identified `os_listdir/readdir`, and Python's standard `-P` safe-path mode fixed it at both script boundaries. The final semantic comparison and final Darwin `--rebuild` pass, and both Linux builders pass the unchanged comparison. Evidence source hashes, Nix paths, metrics, and logs were regenerated.\n",
+    "created_at": "2026-08-13T00:32:23Z"
   }
 ]
 #+end_src
