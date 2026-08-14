@@ -7,7 +7,7 @@ index, search, archive, prune, or back up the files.
 ## Requirements
 
 - Bash 4 or newer
-- rsync 3 with `--protect-args`
+- rsync 3 with `--protect-args`, `--checksum`, and `--sparse`
 - GNU `realpath` from coreutils
 - SSH access and rsync on each configured remote machine
 
@@ -75,7 +75,10 @@ any row failed.
 The synthetic test uses temporary directories and a fake SSH/rsync endpoint. It
 does not read real session logs or contact a remote host. It includes regression
 cases for equal-size/equal-mtime edits, both root/source containment directions,
-and a destination symlink redirected into another configured source.
+a destination symlink redirected into another configured source, and sparse-file
+preservation. The sparse case asserts the copy's allocated blocks stay far below
+its apparent size, and skips that assertion where the filesystem does not store
+holes.
 
 ```bash
 test/gather-sessions.bash

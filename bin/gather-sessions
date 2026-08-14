@@ -145,7 +145,7 @@ for row in "${!machines[@]}"; do
   else
     operand=$host:${source%/}/
   fi
-  if ! rsync -a --checksum --protect-args -- "$operand" "$destination/"; then
+  if ! rsync -a --sparse --checksum --protect-args -- "$operand" "$destination/"; then
     printf '%s: gather failed: %s/%s\n' \
       "${0##*/}" "$machine" "$agent" >&2
     failed=1

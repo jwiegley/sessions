@@ -9378,6 +9378,65 @@ New and changed files copy byte-for-byte; unchanged files are not recopied; dest
 ]
 #+end_src
 
+* DONE [#C] Preserve sparse session files during gathering
+:PROPERTIES:
+:OBR_SCHEMA_VERSION: 17
+:ID:       sess-i1o
+:LABELS:   []
+:ISSUE_TYPE: bug
+:CREATED:  [2026-08-14 Fri 11:23]
+:MODIFIED: [2026-08-14 Fri 11:24]
+:CREATED_BY: johnw
+:FINISHED: [2026-08-14 Fri 11:24]
+:SOURCE_REPO: sessions
+:SOURCE_REPO_PATH: /home/johnw/src/sessions
+:ORIGINAL_SIZE: 0
+:END:
+
+`bin/gather-sessions` invoked `rsync -a --checksum --protect-args`, with no
+`--sparse`. Several agent session files on the Andoria NFS source are very large
+but mostly holes -- Codex measured about 157 GiB allocated against 399 GiB
+apparent -- so a non-sparse copy writes those holes out in full. The existing
+Hera archive expanded them: about 470 GiB allocated for a tree that should need
+roughly 220 GiB.
+
+Add `--sparse` to the single rsync invocation so holes survive the copy, and
+prove it stays added.
+
+** Close Reason
+
+#+begin_example
+Added --sparse to the single rsync invocation in bin/gather-sessions.
+
+Transfer is now equivalent to:
+    rsync -a --sparse --checksum --protect-args -- SOURCE/ DESTINATION/
+No --inplace, --delete, or --remove-source-files was introduced.
+
+Verified, not just asserted:
+  - exact-argv test updated. The fake rsync captured six positional arguments;
+    --sparse makes seven and shifts SOURCE from $5 to $6, so both the capture
+    and the badhost check were corrected alongside the expectation.
+  - new sparse regression: builds a 64 MiB fixture holding one short line of
+    real data, gathers it, and asserts (a) source and copy compare byte-identical,
+    (b) the copy's apparent size is still 64 MiB, and (c) its allocated blocks
+    stay under half that and within 4x the source's allocation.
+  - the allocation assertion is guarded on the SOURCE fixture actually being
+    sparse. If the filesystem does not store holes the fixture comes back fully
+    allocated, and asserting on the copy would then fail for a reason unrelated
+    to the gatherer; in that case the test prints a skip line instead. Confirmed
+    on this host that the assertion RAN rather than skipping.
+  - regression-detection proven: with --sparse removed the suite exits 1, with it
+    restored the suite exits 0. A test that passes either way would be worthless.
+  - shellcheck clean, shfmt -d -i 2 -ci clean, bash -n clean, full suite passes.
+
+Documentation updated so no stale invocation remains anywhere: doc/DESIGN.md
+(required behavior plus a new sparse bullet), doc/IMPLEMENTATION.md (both local
+and SSH forms), README.md (requirements now name --protect-args, --checksum and
+--sparse; test section describes the sparse case and its skip condition).
+Verified by grep that no 'rsync -a --checksum' invocation survives in bin, test,
+README or doc.
+#+end_example
+
 * DONE [#B] Research and design unified AI session archive
 :PROPERTIES:
 :OBR_SCHEMA_VERSION: 17
@@ -9395,3 +9454,4 @@ New and changed files copy byte-for-byte; unchanged files are not recopied; dest
 :END:
 
 Produce doc/RESEARCH.md and doc/DESIGN.md: current standards/tool research, privacy-safe 9-agent x 5-host inventory, alternatives, and a decision-grade Nix architecture with an evidence-based Haskell-versus-Python choice. No implementation.
+

@@ -37,9 +37,11 @@ the simpler implementation for this version.
 
 - Pull local and remote source directories.
 - Preserve filenames, relative paths, symlinks, timestamps, and file bytes using
-  `rsync -a --checksum --protect-args`.
+  `rsync -a --sparse --checksum --protect-args`.
 - Copy new files and update changed files on later runs, even when a change keeps
   the same size and modification time.
+- Preserve sparse files as sparse rather than expanding their holes; some
+  agent session files are very large but mostly holes.
 - Leave unchanged files alone.
 - Never pass `--delete`; a source disappearance does not delete the collected
   copy.

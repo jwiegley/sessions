@@ -43,8 +43,8 @@ For each valid row, the command creates its destination directory and runs one
 of:
 
 ```text
-rsync -a --checksum --protect-args -- SOURCE_DIRECTORY/ DESTINATION/
-rsync -a --checksum --protect-args -- HOST:SOURCE_DIRECTORY/ DESTINATION/
+rsync -a --sparse --checksum --protect-args -- SOURCE_DIRECTORY/ DESTINATION/
+rsync -a --sparse --checksum --protect-args -- HOST:SOURCE_DIRECTORY/ DESTINATION/
 ```
 
 Before creating output, GNU `realpath -m` canonicalizes the collection root and

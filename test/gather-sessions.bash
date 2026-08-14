@@ -34,6 +34,25 @@ mtime() {
   fi
 }
 
+# Allocated 512-byte blocks. BSD stat reports these directly with %b; GNU
+# stat's %b is in units of %B, which is 512 on every filesystem this runs on.
+blocks() {
+  if stat -f '%b' "$1" >/dev/null 2>&1; then
+    stat -f '%b' "$1"
+  else
+    stat -c '%b' "$1"
+  fi
+}
+
+# Apparent size in bytes.
+apparent() {
+  if stat -f '%z' "$1" >/dev/null 2>&1; then
+    stat -f '%z' "$1"
+  else
+    stat -c '%s' "$1"
+  fi
+}
+
 source_dir=$tmp/source\ tree
 collection=$tmp/collection\ root
 mkdir -p "$source_dir/nested"
@@ -153,9 +172,9 @@ cmp "$source_dir/raw.bin" "$tmp/partial/clio/pi/raw.bin"
 mkdir "$tmp/fake-bin"
 cat >"$tmp/fake-bin/rsync" <<'RSYNC'
 #!/usr/bin/env bash
-printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-  "$1" "$2" "$3" "$4" "$5" "$6" >>"$RSYNC_CALL_LOG"
-[[ $5 != badhost:* ]]
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  "$1" "$2" "$3" "$4" "$5" "$6" "$7" >>"$RSYNC_CALL_LOG"
+[[ $6 != badhost:* ]]
 RSYNC
 chmod +x "$tmp/fake-bin/rsync"
 printf 'one\tpi\tbadhost\t/sessions\n' >"$tmp/remote.tsv"
@@ -170,11 +189,11 @@ else
   [[ $? -eq 1 ]]
 fi
 {
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    -a --checksum --protect-args -- badhost:/sessions/ \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse --checksum --protect-args -- badhost:/sessions/ \
     "$remote_root/one/pi/"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    -a --checksum --protect-args -- 'goodhost:/session logs/' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse --checksum --protect-args -- 'goodhost:/session logs/' \
     "$remote_root/two/claude/"
 } >"$tmp/rsync.expected"
 cmp "$tmp/rsync.expected" "$tmp/rsync.calls"
@@ -190,5 +209,36 @@ else
 fi
 grep -F 'unsafe machine label' "$tmp/invalid.err" >/dev/null
 [[ ! -e $tmp/invalid-root ]]
+
+sparse_source=$tmp/sparse\ source
+mkdir -p "$sparse_source"
+sparse_bytes=67108864
+dd if=/dev/zero of="$sparse_source/sparse.bin" bs=1 count=0 \
+  seek="$sparse_bytes" >/dev/null 2>&1
+printf 'sparse marker\n' |
+  dd of="$sparse_source/sparse.bin" bs=1 conv=notrunc >/dev/null 2>&1
+printf 'andoria-08\tcodex\t-\t%s\n' "$sparse_source" >"$tmp/sparse.tsv"
+"$gather" "$tmp/sparse.tsv" "$tmp/sparse root" >"$tmp/sparse.out"
+
+sparse_copy=$tmp/sparse\ root/andoria-08/codex/sparse.bin
+cmp "$sparse_source/sparse.bin" "$sparse_copy"
+[[ $(apparent "$sparse_copy") -eq $sparse_bytes ]]
+
+# The allocation assertion is only meaningful where stat exposes block counts
+# AND the filesystem actually stores holes. Check the SOURCE fixture first: if
+# it came back fully allocated, this filesystem does not do sparse files and
+# asserting on the copy would fail for a reason unrelated to the gatherer.
+if source_blocks=$(blocks "$sparse_source/sparse.bin" 2>/dev/null) &&
+  copy_blocks=$(blocks "$sparse_copy" 2>/dev/null) &&
+  [[ $source_blocks -gt 0 ]] &&
+  [[ $((source_blocks * 512)) -lt $((sparse_bytes / 2)) ]]; then
+  # Without --sparse the hole is written out in full and the copy allocates
+  # roughly $sparse_bytes; with it, allocation stays near the source's.
+  [[ $((copy_blocks * 512)) -lt $((sparse_bytes / 2)) ]]
+  [[ $copy_blocks -le $((source_blocks * 4)) ]]
+else
+  printf '%s\n' \
+    'gather-sessions: sparse allocation assertion skipped (no hole support)'
+fi
 
 printf '%s\n' 'gather-sessions: all tests passed'
