@@ -7,7 +7,11 @@ index, search, archive, prune, or back up the files.
 ## Requirements
 
 - Bash 4 or newer
-- rsync 3 with `--protect-args`, `--checksum`, and `--sparse`
+- rsync 3 with `--checksum` and `--sparse`
+- Remote source paths are given RELATIVE to the remote user's home, so they
+  work both with a plain account and with a key restricted to
+  `command="rrsync -ro DIR"`. Absolute paths break under rrsync, which
+  resolves them beneath its own root.
 - GNU `realpath` from coreutils
 - SSH access and rsync on each configured remote machine
 

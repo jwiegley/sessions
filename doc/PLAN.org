@@ -2,6 +2,80 @@
 #+SEQ_TODO: TODO DOING DRAFT WAIT DEFER NOTE | DONE CANCELED
 #+ISSUE_PREFIX: sess
 
+* DONE [#B] Make gathering work with rrsync-restricted source keys
+:PROPERTIES:
+:OBR_SCHEMA_VERSION: 17
+:ID:       sess-au0
+:LABELS:   []
+:ISSUE_TYPE: bug
+:CREATED:  [2026-08-14 Fri 14:01]
+:MODIFIED: [2026-08-14 Fri 14:02]
+:CREATED_BY: johnw
+:FINISHED: [2026-08-14 Fri 14:02]
+:SOURCE_REPO: sessions
+:SOURCE_REPO_PATH: /home/johnw/src/sessions
+:ORIGINAL_SIZE: 0
+:END:
+
+The gatherer could not talk to any host whose key is restricted with
+command="rrsync -ro DIR", which is how every source host in the Vulcan fleet is
+now secured. Two independent incompatibilities, both fatal:
+
+1. rrsync REFUSES --protect-args. Its source sets `short_disabled = 's'`
+   unconditionally, because -s changes how arguments reach the server and would
+   let a client slip paths past rrsync's directory check. Every transfer died
+   with:
+       rrsync error: option -s has been disabled on this server.
+       rsync error: error in rsync protocol data stream (code 12)
+
+2. ABSOLUTE remote paths break under rrsync, which resolves requests beneath its
+   own root. sources.vulcan.tsv carried /Users/johnw/.claude/projects, and the
+   server tried:
+       change_dir "/Users/johnw/Users/johnw/.claude/projects" failed
+   All 24 remote rows would have failed while the 3 local rows succeeded --
+   silently, until the nightly job ran.
+
+** Close Reason
+
+Fixed both halves and verified against the live hosts, not just in the test harness.
+
+1. Dropped --protect-args from the single rsync invocation. Transfer is now
+       rsync -a --sparse --checksum -- SOURCE/ DESTINATION/
+   Paths containing spaces still work: rrsync receives the argument intact
+   rather than re-splitting it. Verified against a real
+   'Library/Application Support/Claude/claude-code-sessions' root, which listed
+   cleanly. An earlier attempt to backslash-escape the space FAILED -- the
+   backslash arrived literally as part of the name -- so escaping is wrong here
+   and plain spaces are right.
+
+2. Rewrote the 24 remote rows in config/sources.vulcan.tsv to paths relative to
+   each remote user's home. The 3 local rows (host '-') stay absolute, since
+   they are ordinary filesystem paths. Relative form is also correct for an
+   unrestricted account, where it resolves against the login home, so the file
+   works with or without rrsync.
+
+EVIDENCE: all 17 rows on the two currently reachable hosts resolve, 0 failures --
+hera claude-code 564 entries, hera pi 470, clio pi 39, clio claude-code 24, and
+so on through both hosts including the space-bearing Library paths. Before the
+fix every one of them failed.
+
+Also hardened the never-delete guarantee, which John asked to be explicit. The
+gatherer already passed no --delete and a test already proved a vanished source
+file survives; added a direct assertion on the captured argv that none of
+--delete, --delete-excluded, --remove-source-files, --inplace, -s or
+--protect-args ever reaches rsync. Proven to catch a regression: injecting
+--delete into the invocation makes the suite exit 1.
+
+Corrected a comment that my own earlier commit had made false -- the
+sources.vulcan.tsv header claimed only the host column differed from
+sources.johnw.tsv, which stopped being true once the paths changed. It now
+explains the rrsync root-resolution rule that forces the relative form.
+
+Docs updated with no stale invocation left: DESIGN.md (required behavior, plus a
+new bullet stating --protect-args must never be passed and why),
+IMPLEMENTATION.md (both forms), README.md (requirements, and the relative-path
+rule). shellcheck, shfmt -d -i 2 -ci, bash -n and the full suite pass.
+
 * DONE [#C] Add a Vulcan-oriented source configuration
 :PROPERTIES:
 :OBR_SCHEMA_VERSION: 17

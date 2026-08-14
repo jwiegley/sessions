@@ -1,33 +1,42 @@
 # machine	agent	host	source-directory
-# Vulcan-oriented transport view of sources.johnw.tsv.
-# Only the host column differs: Vulcan rows are local here ("-") and
-# Hera rows are remote ("hera"). Clio, VPS and Andoria are unchanged.
+# Vulcan-oriented view of sources.johnw.tsv. Two things differ from it.
+#
+# 1. Transport. Vulcan rows are local here ("-") and Hera rows are remote
+#    ("hera"). Clio, VPS and Andoria keep their hosts.
+#
+# 2. REMOTE PATHS ARE RELATIVE TO THE REMOTE USER'S HOME; local rows ("-")
+#    stay absolute because they are ordinary filesystem paths. Every remote
+#    key here is restricted with command="rrsync -ro <home>", and rrsync
+#    resolves requested paths beneath its own root -- so an absolute
+#    /Users/johnw/.claude becomes /Users/johnw/Users/johnw/.claude and fails.
+#    Relative paths are also correct for an unrestricted account, where they
+#    resolve against the login home, so this form works either way.
 # andoria-08, andoria-t2, delphi-3bd4, and gpu-server share one NFS home.
 # Keep one logical andoria-08 row set; andoria-t2 is transport only.
-hera	claude-code	hera	/Users/johnw/.claude/projects
-hera	codex-cli	hera	/Users/johnw/.codex/sessions
-hera	codex-cli-archived	hera	/Users/johnw/.codex/archived_sessions
-hera	pi	hera	/Users/johnw/.pi/agent/sessions
-hera	opencode	hera	/Users/johnw/.local/share/opencode
-hera	droid-factory	hera	/Users/johnw/.factory/sessions
-hera	claude-desktop-local	hera	/Users/johnw/Library/Application Support/Claude/local-agent-mode-sessions
-hera	claude-desktop-code	hera	/Users/johnw/Library/Application Support/Claude/claude-code-sessions
-hera	cursor-projects	hera	/Users/johnw/.cursor/projects
-clio	claude-code	clio	/Users/johnw/.claude/projects
-clio	codex-cli	clio	/Users/johnw/.codex/sessions
-clio	pi	clio	/Users/johnw/.pi/agent/sessions
-clio	opencode	clio	/Users/johnw/.local/share/opencode
-clio	droid-factory	clio	/Users/johnw/.factory/sessions
-clio	claude-desktop-local	clio	/Users/johnw/Library/Application Support/Claude/local-agent-mode-sessions
-clio	claude-desktop-code	clio	/Users/johnw/Library/Application Support/Claude/claude-code-sessions
-clio	cursor-projects	clio	/Users/johnw/.cursor/projects
-vps	claude-code	vps	/home/johnw/.claude/projects
-vps	opencode	vps	/home/johnw/.local/share/opencode
-vps	droid-factory	vps	/home/johnw/.factory/sessions
+hera	claude-code	hera	.claude/projects
+hera	codex-cli	hera	.codex/sessions
+hera	codex-cli-archived	hera	.codex/archived_sessions
+hera	pi	hera	.pi/agent/sessions
+hera	opencode	hera	.local/share/opencode
+hera	droid-factory	hera	.factory/sessions
+hera	claude-desktop-local	hera	Library/Application Support/Claude/local-agent-mode-sessions
+hera	claude-desktop-code	hera	Library/Application Support/Claude/claude-code-sessions
+hera	cursor-projects	hera	.cursor/projects
+clio	claude-code	clio	.claude/projects
+clio	codex-cli	clio	.codex/sessions
+clio	pi	clio	.pi/agent/sessions
+clio	opencode	clio	.local/share/opencode
+clio	droid-factory	clio	.factory/sessions
+clio	claude-desktop-local	clio	Library/Application Support/Claude/local-agent-mode-sessions
+clio	claude-desktop-code	clio	Library/Application Support/Claude/claude-code-sessions
+clio	cursor-projects	clio	.cursor/projects
+vps	claude-code	vps	.claude/projects
+vps	opencode	vps	.local/share/opencode
+vps	droid-factory	vps	.factory/sessions
 vulcan	claude-code	-	/home/johnw/.claude/projects
 vulcan	opencode	-	/home/johnw/.local/share/opencode
 vulcan	droid-factory	-	/home/johnw/.factory/sessions
-andoria-08	claude-code	andoria-t2	/home/jwiegley/.claude/projects
-andoria-08	codex-cli	andoria-t2	/home/jwiegley/.codex/sessions
-andoria-08	pi	andoria-t2	/home/jwiegley/.pi/agent/sessions
-andoria-08	opencode	andoria-t2	/home/jwiegley/.local/share/opencode
+andoria-08	claude-code	andoria-t2	.claude/projects
+andoria-08	codex-cli	andoria-t2	.codex/sessions
+andoria-08	pi	andoria-t2	.pi/agent/sessions
+andoria-08	opencode	andoria-t2	.local/share/opencode

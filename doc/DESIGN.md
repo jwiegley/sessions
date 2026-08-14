@@ -37,12 +37,16 @@ the simpler implementation for this version.
 
 - Pull local and remote source directories.
 - Preserve filenames, relative paths, symlinks, timestamps, and file bytes using
-  `rsync -a --sparse --checksum --protect-args`.
+  `rsync -a --sparse --checksum`.
 - Copy new files and update changed files on later runs, even when a change keeps
   the same size and modification time.
 - Preserve sparse files as sparse rather than expanding their holes; some
   agent session files are very large but mostly holes.
 - Leave unchanged files alone.
+- Never pass `--protect-args` (`-s`). rrsync disables it unconditionally, so any
+  source host whose key is restricted with `command="rrsync -ro DIR"` would
+  reject every transfer. Paths containing spaces still work, because rrsync
+  receives the argument intact instead of re-splitting it.
 - Never pass `--delete`; a source disappearance does not delete the collected
   copy.
 - Never write, rename, or remove anything in a source directory. Require the

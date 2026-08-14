@@ -145,7 +145,20 @@ for row in "${!machines[@]}"; do
   else
     operand=$host:${source%/}/
   fi
-  if ! rsync -a --sparse --checksum --protect-args -- "$operand" "$destination/"; then
+  # No --protect-args (-s): rrsync disables it unconditionally
+  # (short_disabled = 's'), because it changes how arguments reach the server
+  # and would let a client slip paths past rrsync's directory check. Any source
+  # host whose key is restricted with `command="rrsync -ro DIR"` therefore
+  # rejects the whole transfer with "option -s has been disabled on this
+  # server". Paths containing spaces still work: rrsync receives the argument
+  # intact rather than re-splitting it -- verified against a real
+  # "Library/Application Support/..." session root.
+  #
+  # Never --delete, --delete-excluded, --remove-source-files or --inplace. This
+  # collection only ever adds and updates; a file that disappears from a source
+  # is deliberately kept. test/gather-sessions.bash asserts both halves: that a
+  # vanished source file survives, and that no deleting flag appears in argv.
+  if ! rsync -a --sparse --checksum -- "$operand" "$destination/"; then
     printf '%s: gather failed: %s/%s\n' \
       "${0##*/}" "$machine" "$agent" >&2
     failed=1

@@ -172,9 +172,9 @@ cmp "$source_dir/raw.bin" "$tmp/partial/clio/pi/raw.bin"
 mkdir "$tmp/fake-bin"
 cat >"$tmp/fake-bin/rsync" <<'RSYNC'
 #!/usr/bin/env bash
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-  "$1" "$2" "$3" "$4" "$5" "$6" "$7" >>"$RSYNC_CALL_LOG"
-[[ $6 != badhost:* ]]
+printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+  "$1" "$2" "$3" "$4" "$5" "$6" >>"$RSYNC_CALL_LOG"
+[[ $5 != badhost:* ]]
 RSYNC
 chmod +x "$tmp/fake-bin/rsync"
 printf 'one\tpi\tbadhost\t/sessions\n' >"$tmp/remote.tsv"
@@ -189,15 +189,37 @@ else
   [[ $? -eq 1 ]]
 fi
 {
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    -a --sparse --checksum --protect-args -- badhost:/sessions/ \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse --checksum -- badhost:/sessions/ \
     "$remote_root/one/pi/"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    -a --sparse --checksum --protect-args -- 'goodhost:/session logs/' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse --checksum -- 'goodhost:/session logs/' \
     "$remote_root/two/claude/"
 } >"$tmp/rsync.expected"
 cmp "$tmp/rsync.expected" "$tmp/rsync.calls"
 grep -F 'gather failed: one/pi' "$tmp/remote.err" >/dev/null
+
+# This collection only ever adds and updates. Assert directly on the captured
+# argv that no destructive flag ever reaches rsync, so a future edit cannot
+# quietly introduce one: the vanishing.log case above proves the behaviour,
+# this proves the mechanism. Also guard -s/--protect-args, which rrsync rejects
+# outright ("option -s has been disabled on this server"), so a restricted
+# source host would fail every transfer.
+if awk -F'\t' '
+  {
+    for (i = 1; i <= NF; i++) {
+      if ($i == "--delete" || $i == "--delete-excluded" ||
+          $i == "--remove-source-files" || $i == "--inplace" ||
+          $i == "-s" || $i == "--protect-args") {
+        exit 0
+      }
+    }
+  }
+  END { exit 1 }
+' "$tmp/rsync.calls"; then
+  echo 'a forbidden rsync flag reached argv' >&2
+  exit 1
+fi
 
 printf '../unsafe\tpi\t-\t/tmp/source\n' >"$tmp/invalid.tsv"
 if "$gather" "$tmp/invalid.tsv" "$tmp/invalid-root" \
