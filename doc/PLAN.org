@@ -2,6 +2,54 @@
 #+SEQ_TODO: TODO DOING DRAFT WAIT DEFER NOTE | DONE CANCELED
 #+ISSUE_PREFIX: sess
 
+* DONE [#C] Add a Vulcan-oriented source configuration
+:PROPERTIES:
+:OBR_SCHEMA_VERSION: 17
+:ID:       sess-dwj
+:LABELS:   []
+:ISSUE_TYPE: task
+:CREATED:  [2026-08-14 Fri 11:27]
+:MODIFIED: [2026-08-14 Fri 11:27]
+:CREATED_BY: johnw
+:FINISHED: [2026-08-14 Fri 11:27]
+:SOURCE_REPO: sessions
+:SOURCE_REPO_PATH: /home/johnw/src/sessions
+:ORIGINAL_SIZE: 0
+:END:
+
+sources.johnw.tsv is written from Hera's point of view: its Hera rows are local
+("-") and its Vulcan rows are remote ("vulcan"). Running it unchanged on Vulcan
+would try to reach Vulcan over SSH and would read Vulcan's own paths as if they
+were Hera's.
+
+Add config/sources.vulcan.tsv with the transport inverted for those two
+machines and nothing else changed.
+
+** Close Reason
+
+#+begin_example
+Added config/sources.vulcan.tsv, generated from sources.johnw.tsv with only the host column altered.
+
+Transport changes, and nothing else:
+  - hera   rows: '-'      -> 'hera'   (9 rows)
+  - vulcan rows: 'vulcan' -> '-'      (3 rows)
+  - clio (8), vps (3), andoria-08 (4) unchanged.
+andoria-08 already used andoria-t2 as transport in the source file, so no change
+was needed to satisfy the NFS-alias rule.
+
+Mechanically validated:
+  - 27 active rows, 27 unique (machine, agent) pairs;
+  - all 3 vulcan rows local, all 9 hera rows remote;
+  - andoria transport is andoria-t2 and nothing else;
+  - zero rows whose logical machine is andoria-t2, delphi-3bd4 or gpu-server;
+  - vulcan paths under /home/johnw (3/3), hera+clio under /Users/johnw (17/17),
+    andoria under /home/jwiegley (4/4);
+  - diffing columns 1,2,4 against sources.johnw.tsv is byte-identical, proving
+    only the host column moved.
+
+The timer will use this file, not sources.johnw.tsv.
+#+end_example
+
 * DONE [#C] Build the minimal AI session-log gatherer
 :PROPERTIES:
 :OBR_SCHEMA_VERSION: 17
