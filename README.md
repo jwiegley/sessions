@@ -13,8 +13,10 @@ index, search, archive, prune, or back up the files.
 
 ## Configure sources
 
-Copy [`config/sources.example.tsv`](config/sources.example.tsv) and edit it. The
-file has four tab-separated fields per row:
+Copy [`config/sources.example.tsv`](config/sources.example.tsv) and edit it.
+John's current five-machine configuration is
+[`config/sources.johnw.tsv`](config/sources.johnw.tsv); its shared-NFS hosts use
+one logical Andoria namespace. Each file has four tab-separated fields per row:
 
 ```text
 machine<TAB>agent<TAB>host<TAB>source-directory

@@ -1,0 +1,31 @@
+# machine	agent	host	source-directory
+# Live source inventory probed before collection.
+# andoria-08, andoria-t2, delphi-3bd4, and gpu-server share one NFS home.
+# Keep one logical andoria-08 row set; another alias may be used only as transport.
+hera	claude-code	-	/Users/johnw/.claude/projects
+hera	codex-cli	-	/Users/johnw/.codex/sessions
+hera	codex-cli-archived	-	/Users/johnw/.codex/archived_sessions
+hera	pi	-	/Users/johnw/.pi/agent/sessions
+hera	opencode	-	/Users/johnw/.local/share/opencode
+hera	droid-factory	-	/Users/johnw/.factory/sessions
+hera	claude-desktop-local	-	/Users/johnw/Library/Application Support/Claude/local-agent-mode-sessions
+hera	claude-desktop-code	-	/Users/johnw/Library/Application Support/Claude/claude-code-sessions
+hera	cursor-projects	-	/Users/johnw/.cursor/projects
+clio	claude-code	clio	/Users/johnw/.claude/projects
+clio	codex-cli	clio	/Users/johnw/.codex/sessions
+clio	pi	clio	/Users/johnw/.pi/agent/sessions
+clio	opencode	clio	/Users/johnw/.local/share/opencode
+clio	droid-factory	clio	/Users/johnw/.factory/sessions
+clio	claude-desktop-local	clio	/Users/johnw/Library/Application Support/Claude/local-agent-mode-sessions
+clio	claude-desktop-code	clio	/Users/johnw/Library/Application Support/Claude/claude-code-sessions
+clio	cursor-projects	clio	/Users/johnw/.cursor/projects
+vps	claude-code	vps	/home/johnw/.claude/projects
+vps	opencode	vps	/home/johnw/.local/share/opencode
+vps	droid-factory	vps	/home/johnw/.factory/sessions
+vulcan	claude-code	vulcan	/home/johnw/.claude/projects
+vulcan	opencode	vulcan	/home/johnw/.local/share/opencode
+vulcan	droid-factory	vulcan	/home/johnw/.factory/sessions
+andoria-08	claude-code	andoria-t2	/home/jwiegley/.claude/projects
+andoria-08	codex-cli	andoria-t2	/home/jwiegley/.codex/sessions
+andoria-08	pi	andoria-t2	/home/jwiegley/.pi/agent/sessions
+andoria-08	opencode	andoria-t2	/home/jwiegley/.local/share/opencode
