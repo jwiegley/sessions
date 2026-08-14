@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+usage() {
+  printf 'usage: %s CONFIG COLLECTION_ROOT\n' "${0##*/}" >&2
+  exit 2
+}
+
+config_error() {
+  printf '%s: %s:%d: %s\n' "${0##*/}" "$config" "$line_number" "$1" >&2
+  invalid=1
+}
+
+[[ $# -eq 2 ]] || usage
+config=$1
+collection_root=$2
+
+[[ -r $config && -f $config ]] || {
+  printf '%s: cannot read config: %s\n' "${0##*/}" "$config" >&2
+  exit 2
+}
+[[ -n $collection_root ]] || usage
+
+declare -a machines=() agents=() hosts=() sources=()
+declare -A destinations=()
+invalid=0
+line_number=0
+
+while IFS= read -r line || [[ -n $line ]]; do
+  ((line_number += 1))
+  line=${line%$'\r'}
+  [[ -z $line || $line == \#* ]] && continue
+
+  without_tabs=${line//$'\t'/}
+  if ((${#line} - ${#without_tabs} != 3)); then
+    config_error 'expected four tab-separated fields'
+    continue
+  fi
+
+  IFS=$'\t' read -r machine agent host source <<<"$line"
+  if [[ ! $machine =~ ^[A-Za-z0-9._-]+$ ||
+    $machine == . || $machine == .. ]]; then
+    config_error 'unsafe machine label'
+    continue
+  fi
+  if [[ ! $agent =~ ^[A-Za-z0-9._-]+$ ||
+    $agent == . || $agent == .. ]]; then
+    config_error 'unsafe agent label'
+    continue
+  fi
+  if [[ $host != - && ! $host =~ ^[A-Za-z0-9_][A-Za-z0-9_.@-]*$ ]]; then
+    config_error 'invalid SSH host (use - for a local source)'
+    continue
+  fi
+  if [[ $source != /* || $source == / ]]; then
+    config_error 'source directory must be an absolute path below /'
+    continue
+  fi
+
+  key=$machine/$agent
+  if [[ ${destinations[$key]+present} ]]; then
+    config_error "duplicate destination: $key"
+    continue
+  fi
+  destinations[$key]=1
+  machines+=("$machine")
+  agents+=("$agent")
+  hosts+=("$host")
+  sources+=("$source")
+done <"$config"
+
+((invalid == 0)) || exit 2
+((${#machines[@]} > 0)) || {
+  printf '%s: config contains no sources: %s\n' "${0##*/}" "$config" >&2
+  exit 2
+}
+command -v rsync >/dev/null 2>&1 || {
+  printf '%s: rsync is required\n' "${0##*/}" >&2
+  exit 2
+}
+command -v realpath >/dev/null 2>&1 || {
+  printf '%s: realpath is required\n' "${0##*/}" >&2
+  exit 2
+}
+collection_root=$(realpath -m -- "$collection_root") || {
+  printf '%s: cannot resolve collection root\n' "${0##*/}" >&2
+  exit 2
+}
+
+for row in "${!machines[@]}"; do
+  if [[ ${hosts[$row]} == - ]]; then
+    local_source=$(realpath -m -- "${sources[$row]}") || {
+      printf '%s: cannot resolve local source: %s\n' \
+        "${0##*/}" "${sources[$row]}" >&2
+      exit 2
+    }
+    if [[ $collection_root == "$local_source" ||
+      $collection_root == "$local_source/"* ||
+      $local_source == "$collection_root/"* ]]; then
+      printf '%s: collection root overlaps local source: %s and %s\n' \
+        "${0##*/}" "$collection_root" "$local_source" >&2
+      exit 2
+    fi
+  fi
+done
+for row in "${!machines[@]}"; do
+  destination_path=$collection_root/${machines[$row]}/${agents[$row]}
+  resolved_destination=$(realpath -m -- "$destination_path") || {
+    printf '%s: cannot resolve destination: %s\n' \
+      "${0##*/}" "$destination_path" >&2
+    exit 2
+  }
+  if [[ $resolved_destination != "$destination_path" ]]; then
+    printf '%s: destination path contains a symlink: %s\n' \
+      "${0##*/}" "$destination_path" >&2
+    exit 2
+  fi
+done
+
+mkdir -p -- "$collection_root" || exit 1
+
+failed=0
+for row in "${!machines[@]}"; do
+  machine=${machines[$row]}
+  agent=${agents[$row]}
+  host=${hosts[$row]}
+  source=${sources[$row]}
+  destination=$collection_root/$machine/$agent
+
+  if [[ $host == - && ! -d $source ]]; then
+    printf '%s: missing source directory: %s\n' "${0##*/}" "$source" >&2
+    failed=1
+    continue
+  fi
+  if ! mkdir -p -- "$destination"; then
+    printf '%s: cannot create destination: %s\n' \
+      "${0##*/}" "$destination" >&2
+    failed=1
+    continue
+  fi
+
+  printf '%s: gathering %s/%s\n' "${0##*/}" "$machine" "$agent"
+  if [[ $host == - ]]; then
+    operand=${source%/}/
+  else
+    operand=$host:${source%/}/
+  fi
+  if ! rsync -a --checksum --protect-args -- "$operand" "$destination/"; then
+    printf '%s: gather failed: %s/%s\n' \
+      "${0##*/}" "$machine" "$agent" >&2
+    failed=1
+  fi
+done
+
+exit "$failed"

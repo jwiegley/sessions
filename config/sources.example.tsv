@@ -1,0 +1,17 @@
+# machine	agent	host	source-directory
+# Replace /Users/you with the absolute home directory on each source machine.
+# Use - as the host for local sources, or an SSH destination for remote sources.
+my-mac	claude-code	-	/Users/you/.claude/projects
+my-mac	codex-cli	-	/Users/you/.codex/sessions
+my-mac	codex-cli-archived	-	/Users/you/.codex/archived_sessions
+my-mac	pi	-	/Users/you/.pi/agent/sessions
+my-mac	opencode	-	/Users/you/.local/share/opencode
+my-mac	droid-factory	-	/Users/you/.factory/sessions
+my-mac	claude-desktop-local	-	/Users/you/Library/Application Support/Claude/local-agent-mode-sessions
+my-mac	claude-desktop-code	-	/Users/you/Library/Application Support/Claude/claude-code-sessions
+my-mac	cursor-projects	-	/Users/you/.cursor/projects
+my-mac	cursor-chats	-	/Users/you/.cursor/chats
+# A remote row has exactly the same shape:
+# work-linux	claude-code	you@work-linux	/home/you/.claude/projects
+# Codex Desktop has no proven separate transcript root. Factory Desktop shares
+# the droid-factory root above; generic browser and Electron caches are omitted.
