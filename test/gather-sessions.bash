@@ -263,4 +263,69 @@ else
     'gather-sessions: sparse allocation assertion skipped (no hole support)'
 fi
 
+# A remote row may use a path relative to the remote home; rrsync requires it.
+# A LOCAL row must still be absolute, since it is realpath'd and overlap-checked.
+mkdir "$tmp/relbin"
+cat >"$tmp/relbin/rsync" <<'RELRSYNC'
+#!/usr/bin/env bash
+printf '%s\n' "$5" >>"$RSYNC_CALL_LOG"
+RELRSYNC
+chmod +x "$tmp/relbin/rsync"
+printf 'hera\tpi\thera\t.claude/projects\n' >"$tmp/rel.tsv"
+RSYNC_CALL_LOG="$tmp/rel.calls" PATH="$tmp/relbin:$PATH" \
+  "$gather" "$tmp/rel.tsv" "$tmp/rel root" >"$tmp/rel.out" 2>"$tmp/rel.err"
+grep -Fx 'hera:.claude/projects/' "$tmp/rel.calls" >/dev/null
+
+printf 'hera\tpi\t-\trelative/local\n' >"$tmp/badlocal.tsv"
+if "$gather" "$tmp/badlocal.tsv" "$tmp/badlocal-root" \
+  >"$tmp/badlocal.out" 2>"$tmp/badlocal.err"; then
+  echo 'expected a relative LOCAL source to be rejected' >&2
+  exit 1
+else
+  [[ $? -eq 2 ]]
+fi
+grep -F 'local source directory must be an absolute path' \
+  "$tmp/badlocal.err" >/dev/null
+
+printf 'hera\tpi\thera\t../escape\n' >"$tmp/traverse.tsv"
+if "$gather" "$tmp/traverse.tsv" "$tmp/traverse-root" \
+  >"$tmp/traverse.out" 2>"$tmp/traverse.err"; then
+  echo 'expected a traversing remote source to be rejected' >&2
+  exit 1
+else
+  [[ $? -eq 2 ]]
+fi
+grep -F 'must not traverse with ..' "$tmp/traverse.err" >/dev/null
+
+# An offline host is SKIPPED (exit 0), but any other failure still fails.
+mkdir "$tmp/offbin"
+cat >"$tmp/offbin/rsync" <<'OFFRSYNC'
+#!/usr/bin/env bash
+printf 'ssh: connect to host 10.0.0.9 port 22: No route to host\n' >&2
+printf 'rsync: connection unexpectedly closed\n' >&2
+exit 255
+OFFRSYNC
+chmod +x "$tmp/offbin/rsync"
+printf 'clio\tpi\tclio\t.claude\n' >"$tmp/off.tsv"
+PATH="$tmp/offbin:$PATH" "$gather" "$tmp/off.tsv" "$tmp/off root" \
+  >"$tmp/off.out" 2>"$tmp/off.err"
+grep -F 'skipping clio/pi: host offline' "$tmp/off.out" >/dev/null
+
+mkdir "$tmp/denybin"
+cat >"$tmp/denybin/rsync" <<'DENYRSYNC'
+#!/usr/bin/env bash
+printf 'Permission denied (publickey).\n' >&2
+exit 255
+DENYRSYNC
+chmod +x "$tmp/denybin/rsync"
+printf 'vps\tpi\tvps\t.claude\n' >"$tmp/deny.tsv"
+if PATH="$tmp/denybin:$PATH" "$gather" "$tmp/deny.tsv" "$tmp/deny root" \
+  >"$tmp/deny.out" 2>"$tmp/deny.err"; then
+  echo 'expected a non-reachability failure to fail the run' >&2
+  exit 1
+else
+  [[ $? -eq 1 ]]
+fi
+grep -F 'gather failed: vps/pi' "$tmp/deny.err" >/dev/null
+
 printf '%s\n' 'gather-sessions: all tests passed'

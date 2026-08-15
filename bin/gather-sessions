@@ -52,9 +52,31 @@ while IFS= read -r line || [[ -n $line ]]; do
     config_error 'invalid SSH host (use - for a local source)'
     continue
   fi
-  if [[ $source != /* || $source == / ]]; then
-    config_error 'source directory must be an absolute path below /'
-    continue
+  # A LOCAL source is a path on this filesystem: it is realpath'd and checked
+  # for overlap against the collection root, so it must be absolute.
+  #
+  # A REMOTE source is interpreted by the remote rsync, and there it may be
+  # relative -- indeed it MUST be when the remote key is restricted with
+  # `command="rrsync -ro DIR"`, because rrsync resolves every request beneath
+  # its own root and an absolute /Users/johnw/.claude becomes
+  # /Users/johnw/Users/johnw/.claude. Relative also works for an unrestricted
+  # account, resolving against the login home, so it is the portable form.
+  if [[ $host == - ]]; then
+    if [[ $source != /* || $source == / ]]; then
+      config_error 'local source directory must be an absolute path below /'
+      continue
+    fi
+  else
+    if [[ -z $source || $source == / ]]; then
+      config_error 'remote source directory must not be empty or /'
+      continue
+    fi
+    # Reject traversal outright rather than relying on the remote to catch it.
+    if [[ $source == .. || $source == ../* || $source == */../* ||
+      $source == */.. ]]; then
+      config_error 'remote source directory must not traverse with ..'
+      continue
+    fi
   fi
 
   key=$machine/$agent
@@ -158,10 +180,39 @@ for row in "${!machines[@]}"; do
   # collection only ever adds and updates; a file that disappears from a source
   # is deliberately kept. test/gather-sessions.bash asserts both halves: that a
   # vanished source file survives, and that no deleting flag appears in argv.
-  if ! rsync -a --sparse --checksum -- "$operand" "$destination/"; then
-    printf '%s: gather failed: %s/%s\n' \
-      "${0##*/}" "$machine" "$agent" >&2
-    failed=1
+  # An OFFLINE host is skipped, not failed. Laptops in the fleet travel, and a
+  # nightly collection that reports failure every night one of them is away
+  # trains its operator to ignore the failure -- at which point a real breakage
+  # goes unnoticed too. Only reachability is forgiven: anything else (refused
+  # key, missing directory, rrsync rejection, partial transfer) still fails, so
+  # a misconfigured host cannot hide behind this.
+  #
+  # The classification reads rsync's own output rather than probing separately,
+  # so it tests the exact transport rsync uses -- including any ProxyJump and
+  # per-host identity in RSYNC_RSH. A separate `ssh host true` probe would be
+  # wrong here anyway: hosts whose key is restricted with a forced rsync command
+  # reject a bare `true` while being perfectly reachable.
+  #
+  # 2>&1 captures BOTH streams, and the capture is replayed to stderr on a real
+  # failure. That costs nothing in practice because no -v or --progress is
+  # passed, so rsync is silent on stdout for a successful transfer; there is no
+  # streaming output being withheld.
+  if ! rsync_output=$(rsync -a --sparse --checksum -- "$operand" "$destination/" 2>&1); then
+    # Deliberately NOT matching "Could not resolve hostname": a name that does
+    # not resolve is far more likely a typo or a broken config than a machine
+    # that is merely away, and silently skipping it would hide the mistake for
+    # as long as nobody reads the log. A travelling laptop presents as
+    # "No route to host" or a timeout, which is what these patterns catch.
+    if printf '%s' "$rsync_output" | grep -qE \
+      'No route to host|Connection refused|Connection timed out|Network is unreachable|Operation timed out|Host is down'; then
+      printf '%s: skipping %s/%s: host offline\n' \
+        "${0##*/}" "$machine" "$agent"
+    else
+      printf '%s\n' "$rsync_output" >&2
+      printf '%s: gather failed: %s/%s\n' \
+        "${0##*/}" "$machine" "$agent" >&2
+      failed=1
+    fi
   fi
 done
 

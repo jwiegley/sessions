@@ -9559,6 +9559,75 @@ Verified by grep that no 'rsync -a --checksum' invocation survives in bin, test,
 README or doc.
 #+end_example
 
+* DONE [#B] Load relative remote paths, and skip offline hosts instead of failing
+:PROPERTIES:
+:OBR_SCHEMA_VERSION: 17
+:ID:       sess-sa8
+:LABELS:   []
+:ISSUE_TYPE: bug
+:CREATED:  [2026-08-14 Fri 17:37]
+:MODIFIED: [2026-08-14 Fri 17:37]
+:CREATED_BY: johnw
+:FINISHED: [2026-08-14 Fri 17:37]
+:SOURCE_REPO: sessions
+:SOURCE_REPO_PATH: /home/johnw/src/sessions
+:ORIGINAL_SIZE: 0
+:END:
+
+Two defects, both found only by running the gatherer against the real config
+rather than testing rsync by hand.
+
+1. THE SHIPPED CONFIG COULD NOT BE LOADED. bin/gather-sessions required every
+   source path to be absolute. The previous commit rewrote the 24 remote rows to
+   home-relative paths (correct, and required by rrsync), so the gatherer
+   rejected the whole file with exit 2 and 24 copies of
+   "source directory must be an absolute path below /". Nothing was gathered.
+
+2. AN OFFLINE HOST FAILED THE RUN. clio travels. The nightly unit therefore
+   failed every night clio was away, which trains its operator to ignore the
+   failure -- at which point a real breakage goes unnoticed too.
+
+** Close Reason
+
+Both fixed, and verified by running the gatherer against the real config.
+
+1. VALIDATION now distinguishes local from remote. A local source is realpath'd
+   and overlap-checked against the collection root, so it must still be
+   absolute. A remote source is interpreted by the remote rsync and may be
+   relative -- and MUST be under rrsync, which resolves every request beneath
+   its own root. Traversal with .. is rejected outright rather than relying on
+   the remote to catch it.
+
+   Before: exit 2, 24 rows rejected, nothing gathered.
+   After:  0 config errors, all 27 rows attempted.
+
+2. OFFLINE HOSTS ARE SKIPPED, not failed. Classification reads rsync's own
+   output rather than probing separately, so it exercises the exact transport
+   rsync uses including ProxyJump and per-host identity. A separate 'ssh host
+   true' probe would be actively wrong here: a host whose key is restricted with
+   a forced rsync command rejects a bare 'true' while being perfectly reachable.
+
+   Only reachability is forgiven. andoria's real error, 'administratively
+   prohibited' from a permitopen mismatch, does NOT match the offline patterns
+   and still fails -- confirmed against the live host. 'Could not resolve
+   hostname' was deliberately REMOVED from the skip list: an unresolvable name
+   is more likely a typo than a travelling laptop, and skipping it would hide
+   the mistake.
+
+END-TO-END EVIDENCE: with RSYNC_RSH pointing at the job's ssh config, the
+gatherer accepted the config and performed real transfers -- 'gathering
+hera/claude-code', 'gathering hera/codex-cli', 38G pulled into the correct
+<root>/hera/<agent> layout before the probe was stopped and its scratch copy
+deleted. Hera's originals were untouched.
+
+Regressions added and proven to bite: reverting the validation makes the suite
+exit 2; the suite also asserts a relative remote path reaches rsync as
+'hera:.claude/projects/', a relative LOCAL path is rejected, '../escape' is
+rejected, a 'No route to host' failure is skipped with exit 0, and a
+'Permission denied' failure still fails with exit 1.
+
+shellcheck, shfmt -d -i 2 -ci and the full suite pass.
+
 * DONE [#B] Research and design unified AI session archive
 :PROPERTIES:
 :OBR_SCHEMA_VERSION: 17
