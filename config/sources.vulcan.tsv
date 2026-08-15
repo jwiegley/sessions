@@ -12,7 +12,9 @@
 #    Relative paths are also correct for an unrestricted account, where they
 #    resolve against the login home, so this form works either way.
 # andoria-08, andoria-t2, delphi-3bd4, and gpu-server share one NFS home.
-# Keep one logical andoria-08 row set; andoria-t2 is transport only.
+# Keep one logical andoria-08 row set. andoria-08 is used as BOTH the logical
+# machine label and the transport alias, at John's direction 2026-08-14: hera's
+# permitopen already names andoria-08:22, so nothing has to be widened there.
 hera	claude-code	hera	.claude/projects
 hera	codex-cli	hera	.codex/sessions
 hera	codex-cli-archived	hera	.codex/archived_sessions
@@ -36,7 +38,7 @@ vps	droid-factory	vps	.factory/sessions
 vulcan	claude-code	-	/home/johnw/.claude/projects
 vulcan	opencode	-	/home/johnw/.local/share/opencode
 vulcan	droid-factory	-	/home/johnw/.factory/sessions
-andoria-08	claude-code	andoria-t2	.claude/projects
-andoria-08	codex-cli	andoria-t2	.codex/sessions
-andoria-08	pi	andoria-t2	.pi/agent/sessions
-andoria-08	opencode	andoria-t2	.local/share/opencode
+andoria-08	claude-code	andoria-08	.claude/projects
+andoria-08	codex-cli	andoria-08	.codex/sessions
+andoria-08	pi	andoria-08	.pi/agent/sessions
+andoria-08	opencode	andoria-08	.local/share/opencode
