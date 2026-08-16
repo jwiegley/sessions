@@ -80,6 +80,20 @@ inode_before=$(inode "$collection/hera/pi/raw.bin")
 "$gather" "$tmp/local.tsv" "$collection" >"$tmp/unchanged.out"
 [[ $(inode "$collection/hera/pi/raw.bin") == "$inode_before" ]]
 
+# SAME-SIZE, SAME-MTIME EDIT IS NOT PROPAGATED -- the accepted cost of dropping
+# --checksum on 2026-08-16.
+#
+# This assertion is INVERTED from what it used to be. It previously proved the
+# copy DID track such an edit, which was the entire justification for
+# --checksum. That flag made every run re-hash both sides: three consecutive
+# runs took 49m45s / 50m22s / 62m15s reading ~125 GB each, whether or not
+# anything had changed, to move about 1 GB.
+#
+# The case is pinned rather than deleted so the limitation stays visible and
+# provable: session transcripts are append-only in practice and an append
+# changes size, so this narrow miss is the deliberate trade. If --checksum is
+# ever restored, this test fails loudly and tells the next reader exactly why it
+# was written this way.
 same_stat_mtime=$(mtime "$source_dir/same-stat.bin")
 printf 'BBBB' >"$source_dir/same-stat.bin"
 touch -t 202001020304.05 "$source_dir/same-stat.bin"
@@ -87,8 +101,12 @@ touch -t 202001020304.05 "$source_dir/same-stat.bin"
 snapshot "$source_dir" >"$tmp/same-stat.before"
 "$gather" "$tmp/local.tsv" "$collection" >"$tmp/same-stat.out"
 snapshot "$source_dir" >"$tmp/same-stat.after"
+# The source is still never modified.
 cmp "$tmp/same-stat.before" "$tmp/same-stat.after"
-cmp "$source_dir/same-stat.bin" "$collection/hera/pi/same-stat.bin"
+# The collection still holds the ORIGINAL bytes: rsync saw identical size and
+# mtime and skipped the file.
+[[ $(cat "$collection/hera/pi/same-stat.bin") == AAAA ]]
+! cmp -s "$source_dir/same-stat.bin" "$collection/hera/pi/same-stat.bin"
 
 sleep 1
 printf 'second log, updated\n' >"$source_dir/nested/session.jsonl"
@@ -172,9 +190,21 @@ cmp "$source_dir/raw.bin" "$tmp/partial/clio/pi/raw.bin"
 mkdir "$tmp/fake-bin"
 cat >"$tmp/fake-bin/rsync" <<'RSYNC'
 #!/usr/bin/env bash
-printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-  "$1" "$2" "$3" "$4" "$5" "$6" >>"$RSYNC_CALL_LOG"
-[[ $5 != badhost:* ]]
+# Log the FULL argv tab-separated, and match the failing host ANYWHERE in it,
+# rather than reading fixed positional parameters.
+#
+# The previous version logged exactly $1..$6 and tested `[[ $5 != badhost:* ]]`,
+# which silently depended on the flag count: dropping --checksum on 2026-08-16
+# shifted the source operand from $5 to $4, so the badhost transfer stopped
+# failing and this test broke in a way that pointed nowhere near the real change.
+IFS=$'\t'
+printf '%s\n' "$*" >>"$RSYNC_CALL_LOG"
+for arg in "$@"; do
+  case $arg in
+  badhost:*) exit 1 ;;
+  esac
+done
+exit 0
 RSYNC
 chmod +x "$tmp/fake-bin/rsync"
 printf 'one\tpi\tbadhost\t/sessions\n' >"$tmp/remote.tsv"
@@ -188,12 +218,15 @@ if RSYNC_CALL_LOG="$tmp/rsync.calls" PATH="$tmp/fake-bin:$PATH" \
 else
   [[ $? -eq 1 ]]
 fi
+# Exact argv, --checksum deliberately absent since 2026-08-16. This is the
+# assertion that pins the flag set, so re-adding --checksum fails HERE with a
+# readable diff rather than only showing up as an hour of nightly I/O.
 {
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    -a --sparse --checksum -- badhost:/sessions/ \
+  printf '%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse -- badhost:/sessions/ \
     "$remote_root/one/pi/"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    -a --sparse --checksum -- 'goodhost:/session logs/' \
+  printf '%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse -- 'goodhost:/session logs/' \
     "$remote_root/two/claude/"
 } >"$tmp/rsync.expected"
 cmp "$tmp/rsync.expected" "$tmp/rsync.calls"
@@ -268,7 +301,11 @@ fi
 mkdir "$tmp/relbin"
 cat >"$tmp/relbin/rsync" <<'RELRSYNC'
 #!/usr/bin/env bash
-printf '%s\n' "$5" >>"$RSYNC_CALL_LOG"
+# Log the SOURCE operand, addressed as the penultimate argument rather than by a
+# fixed index. rsync's trailing two arguments are always <source> <destination>,
+# so this survives any change to the flag list; the previous `"$5"` silently
+# pointed at the destination once --checksum was dropped (2026-08-16).
+printf '%s\n' "${@: -2:1}" >>"$RSYNC_CALL_LOG"
 RELRSYNC
 chmod +x "$tmp/relbin/rsync"
 printf 'hera\tpi\thera\t.claude/projects\n' >"$tmp/rel.tsv"

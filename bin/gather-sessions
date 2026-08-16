@@ -197,7 +197,22 @@ for row in "${!machines[@]}"; do
   # failure. That costs nothing in practice because no -v or --progress is
   # passed, so rsync is silent on stdout for a successful transfer; there is no
   # streaming output being withheld.
-  if ! rsync_output=$(rsync -a --sparse --checksum -- "$operand" "$destination/" 2>&1); then
+  # NO --checksum, by deliberate decision (2026-08-16). rsync therefore selects
+  # files the default way, on size and mtime.
+  #
+  # It was here to catch the one edit that size+mtime comparison misses: a file
+  # rewritten in place with BOTH preserved. Measured cost of keeping it: because
+  # --checksum hashes every file on BOTH ends before deciding, the cost does not
+  # decay with an unchanged tree. Three consecutive runs took 49m45s, 50m22s and
+  # 62m15s, each reading ~125 GB, while the archive grew about 1 GB -- roughly
+  # 125 bytes read per byte kept, every night, on vulcan AND on each source,
+  # including a VPS reached over the public internet and a laptop that travels.
+  #
+  # Accepted risk: session transcripts are overwhelmingly append-only, and an
+  # append changes size, so the missed case is narrow. It is not zero, and the
+  # test suite pins the new behaviour explicitly rather than quietly dropping the
+  # old assertion -- see the same-stat case in test/gather-sessions.bash.
+  if ! rsync_output=$(rsync -a --sparse -- "$operand" "$destination/" 2>&1); then
     # Deliberately NOT matching "Could not resolve hostname": a name that does
     # not resolve is far more likely a typo or a broken config than a machine
     # that is merely away, and silently skipping it would hide the mistake for
