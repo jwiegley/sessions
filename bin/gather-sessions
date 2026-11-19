@@ -212,7 +212,20 @@ for row in "${!machines[@]}"; do
   # append changes size, so the missed case is narrow. It is not zero, and the
   # test suite pins the new behaviour explicitly rather than quietly dropping the
   # old assertion -- see the same-stat case in test/gather-sessions.bash.
-  if ! rsync_output=$(rsync -a --sparse -- "$operand" "$destination/" 2>&1); then
+  #
+  # Symlink permissions: -a implies -p, and rsync 3.5.2 as RECEIVER fails every
+  # symlink a macOS sender offers ("failed to set permissions ...: Operation not
+  # supported (95)", exit 23), because APFS symlinks carry a mode Linux cannot
+  # set. That is fixed in the receiver, not here: vulcan's unit runs the patched
+  # rsync-mac-receiver build (RsyncProject/rsync#1148), so -p stays.
+  #
+  # --exclude=node_modules (2026-11-19): vendored tooling that some agents drag
+  # into their config trees is not session data. clio/opencode was 1.6 GB, of
+  # which one extension's node_modules was 69 MB, and it is also where nearly all
+  # of the offending symlinks live. Excluded at every depth, which is what rsync's
+  # bare pattern does.
+  if ! rsync_output=$(rsync -a --sparse --exclude=node_modules -- \
+    "$operand" "$destination/" 2>&1); then
     # Deliberately NOT matching "Could not resolve hostname": a name that does
     # not resolve is far more likely a typo or a broken config than a machine
     # that is merely away, and silently skipping it would hide the mistake for

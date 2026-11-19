@@ -62,6 +62,10 @@ printf 'AAAA' >"$source_dir/same-stat.bin"
 touch -t 202001020304.05 "$source_dir/same-stat.bin"
 printf 'keep after source removal\n' >"$source_dir/vanishing.log"
 ln -s nested/session.jsonl "$source_dir/current"
+# Vendored tooling is not session data: --exclude=node_modules must drop it at
+# any depth, while the symlink above still arrives as a symlink.
+mkdir -p "$source_dir/node_modules/pkg"
+printf 'vendored\n' >"$source_dir/node_modules/pkg/index.js"
 printf 'hera\tpi\t-\t%s\n' "$source_dir" >"$tmp/local.tsv"
 
 snapshot "$source_dir" >"$tmp/source.before"
@@ -75,6 +79,7 @@ cmp "$source_dir/same-stat.bin" "$collection/hera/pi/same-stat.bin"
 [[ $(mtime "$source_dir/same-stat.bin") == "$(mtime "$collection/hera/pi/same-stat.bin")" ]]
 [[ -L $collection/hera/pi/current ]]
 [[ $(readlink "$collection/hera/pi/current") == nested/session.jsonl ]]
+[[ ! -e $collection/hera/pi/node_modules ]]
 
 inode_before=$(inode "$collection/hera/pi/raw.bin")
 "$gather" "$tmp/local.tsv" "$collection" >"$tmp/unchanged.out"
@@ -221,12 +226,15 @@ fi
 # Exact argv, --checksum deliberately absent since 2026-08-16. This is the
 # assertion that pins the flag set, so re-adding --checksum fails HERE with a
 # readable diff rather than only showing up as an hour of nightly I/O.
+#
+# --exclude=node_modules is pinned the same way (2026-11-19): vendored tooling
+# is not session data, and most of the symlinks in a Mac agent's tree live there.
 {
-  printf '%s\t%s\t%s\t%s\t%s\n' \
-    -a --sparse -- badhost:/sessions/ \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse --exclude=node_modules -- badhost:/sessions/ \
     "$remote_root/one/pi/"
-  printf '%s\t%s\t%s\t%s\t%s\n' \
-    -a --sparse -- 'goodhost:/session logs/' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    -a --sparse --exclude=node_modules -- 'goodhost:/session logs/' \
     "$remote_root/two/claude/"
 } >"$tmp/rsync.expected"
 cmp "$tmp/rsync.expected" "$tmp/rsync.calls"
